@@ -243,7 +243,7 @@ static void render(void) {
     float scale = 1000.0;
     float yscale = 1.0 / sqrtf(3.0);
     float dscale = scale / size;
-    float dotscale = 0.5 * dscale;
+    float dotscale = 0.25 * dscale;
     printf("<?xml version=\"1.0\"?>\n"
            "<svg width=\"%f\" height=\"%f\"\n"
            "version=\"1.1\"\n"
