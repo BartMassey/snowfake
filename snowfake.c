@@ -240,7 +240,15 @@ static void melting(void) {
 }
 
 static void render(void) {
+    float scale = 1000.0;
     float yscale = 1.0 / sqrtf(3.0);
+    float dscale = scale / size;
+    float dotscale = 0.5 * dscale;
+    printf("<?xml version=\"1.0\"?>\n"
+           "<svg width=\"%f\" height=\"%f\"\n"
+           "version=\"1.1\"\n"
+           "xmlns=\"http://www.w3.org/2000/svg\">\n",
+           scale, scale * yscale);
     for (int r = 0; r < size; r++) {
         for (int c = 0; c < size; c++) {
             if (!sites0[r][c].attached)
@@ -250,11 +258,13 @@ static void render(void) {
             float d = hypotf(x0, y0);
             float a = atan2f(y0, x0);
             a += M_PI_4;
-            float x = d * cosf(a) + center;
-            float y = (d * sinf(a) + center) * yscale;
-            printf("%f %f %f\n", x, y, sites0[r][c].crystal_mass);
+            float x = (d * cosf(a) + center) * dscale;
+            float y = (d * sinf(a) + center) * dscale * yscale;
+            printf("  <circle cx=\"%f\" cy=\"%f\" r=\"%f\"/>\n",
+                   x, y, sites0[r][c].crystal_mass * dotscale);
         }
     }
+    printf("</svg>\n");
 }
 
 int main(int argc, char **argv) {
