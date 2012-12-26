@@ -16,10 +16,12 @@
  */
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 static int size;
+static int center;
 
 /* initial vapor density: typ 0.3..0.9 */
 static float gg_rho = 0.42;
@@ -48,7 +50,7 @@ static struct site_state **sites0, **sites;
 
 static struct site_state ***sites_pages;
 
-int neighbor_offsets[6][2] = {
+static int neighbor_offsets[6][2] = {
     {-1, -1},
     {-1, 0},
     {0, -1},
@@ -107,7 +109,7 @@ static void init_sites(void) {
     for (int r = 0; r < size; r++)
         for (int c = 0; c < size; c++)
             sites[r][c] = off_site;
-    int center = size / 2 + 1;
+    center = size / 2 + 1;
     sites[center][center] = start_site;
     for (int i = 0; i < 6; i++) {
         int r, c;
@@ -237,6 +239,24 @@ static void melting(void) {
     }
 }
 
+static void render(void) {
+    float yscale = 1.0 / sqrtf(3.0);
+    for (int r = 0; r < size; r++) {
+        for (int c = 0; c < size; c++) {
+            if (!sites0[r][c].attached)
+                continue;
+            int x0 = r - center;
+            int y0 = c - center;
+            float d = hypotf(x0, y0);
+            float a = atan2f(y0, x0);
+            a += M_PI_4;
+            float x = d * cosf(a) + center;
+            float y = (d * sinf(a) + center) * yscale;
+            printf("%f %f %f\n", x, y, sites0[r][c].crystal_mass);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     assert(argc == 2);
     size = atoi(argv[1]);
@@ -254,5 +274,6 @@ int main(int argc, char **argv) {
         melting();
         flip_sites();
     }
+    render();
     return 0;
 }

@@ -6,10 +6,10 @@
 C99C = gcc -std=gnu99
 CC = gcc
 CFLAGS = -g -O4 -Wall
-LIBS = -lX11 -lXext -lm
+LIBS = -lm
 
 snowfake: snowfake.c
-	$(C99C) $(CFLAGS) -o snowfake snowfake.c
+	$(C99C) $(CFLAGS) -o snowfake snowfake.c $(LIBS)
 
 clean:
 	-rm -rf snowfake
