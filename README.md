@@ -1,6 +1,12 @@
 # Snowfake
 Copyright © 2012 Bart Massey
 
+[This is a work-in-progress. It does run (when given one
+argument describing the size of the snowfake to be built),
+but I don't think the simulation is quite right yet, and
+it's incredibly slow. I'll honestly probably not get to
+it until around next Christmas, though. :-)]
+
 This code generates Gravner-Griffeath "Snowfakes", as
 described in
 
