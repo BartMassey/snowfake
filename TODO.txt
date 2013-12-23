@@ -4,3 +4,5 @@
 * Expand effective growth area.
 * Fuse loops.
 * Fix SVG output to scale and crop properly.
+* Fix SVG output to use hexagons.
+* Fix SVG output to have minimum density for crystals.
