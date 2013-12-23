@@ -37,6 +37,8 @@ static float gg_alpha = 0.08;
 static float gg_mu = 0.06;
 /* crystal boundary mass diffusive fraction: typ "very small" */
 static float gg_gamma = 0.006;
+/* noise in diffusive mass: typ "tiny" */
+static float gg_sigma = 0;
 
 struct site_state {
     short attached;
@@ -73,9 +75,6 @@ static void flip_sites(void) {
     struct site_state **tmp = sites;
     sites = sites0;
     sites0 = tmp;
-    for (int r = 0; r < size; r++)
-        for (int c = 0; c < size; c++)
-            sites[r][c] = sites0[r][c];
 }
 
 static void init_sites(void) {
@@ -120,22 +119,27 @@ static void init_sites(void) {
 }
 
 static void diffusion(void) {
-    for (int rc = 0; rc < size; rc++) {
-        sites0[rc][0].diffusive_mass = gg_rho;
-        sites0[rc][size-1].diffusive_mass = gg_rho;
-        sites0[0][rc].diffusive_mass = gg_rho;
-        sites0[size-1][rc].diffusive_mass = gg_rho;
-    }
-    for (int r = 0; r < size; r++) {
-        for (int c = 0; c < size; c++) {
-            if (sites0[r][c].attached)
+    for (int r = 1; r < size - 1; r++) {
+        for (int c = 1; c < size - 1; c++) {
+            /* XXX These assignments are here for convenience
+               only. They should probably go somewhere else. */
+            sites[r][c].attached_neighbors =
+              sites0[r][c].attached_neighbors;
+            sites[r][c].attached =
+              sites0[r][c].attached;
+
+            if (sites[r][c].attached) {
+                sites[r][c].diffusive_mass = 0;
                 continue;
+            }
             sites[r][c].diffusive_mass =
               sites0[r][c].diffusive_mass / 7.0;
             for (int i = 0; i < 6; i++) {
                 int rr, cc;
                 if (!next_neighbor(i, r, c, &rr, &cc))
                     continue;
+                /* "reflective boundary conditions": replace
+                   mass from crystalline neighbors with self mass. */
                 if (sites0[rr][cc].attached) {
                     rr = r;
                     cc = c;
@@ -148,13 +152,13 @@ static void diffusion(void) {
 }
 
 static void freezing(void) {
-    for (int r = 0; r < size; r++) {
-        for (int c = 0; c < size; c++) {
-            if (sites0[r][c].attached || sites0[r][c].attached_neighbors == 0)
+    for (int r = 1; r < size - 1; r++) {
+        for (int c = 1; c < size - 1; c++) {
+            if (sites[r][c].attached || sites[r][c].attached_neighbors == 0)
                 continue;
             float b0 = sites0[r][c].boundary_mass;
             float c0 = sites0[r][c].crystal_mass;
-            float d0 = sites0[r][c].diffusive_mass;
+            float d0 = sites[r][c].diffusive_mass;
             sites[r][c].diffusive_mass = 0;
             sites[r][c].crystal_mass = c0 + gg_kappa * d0;
             sites[r][c].boundary_mass = b0 + (1 - gg_kappa) * d0;
@@ -164,45 +168,50 @@ static void freezing(void) {
 
 static int attachment(void) {
     int stop = 0;
-    for (int r = 0; r < size; r++) {
-        for (int c = 0; c < size; c++) {
-            if (sites0[r][c].attached)
+    for (int r = 1; r < size - 1; r++) {
+        for (int c = 1; c < size - 1; c++) {
+            if (sites[r][c].attached)
                 continue;
-            switch(sites0[r][c].attached_neighbors) {
+            switch(sites[r][c].attached_neighbors) {
             case 0:
+                /* outside boundary, so ignore */
                 break;
             case 1:
             case 2:
+                /* tip or edge */
 #ifdef DEBUG
                 printf("boundary 1/2 %d %d %f\n",
-                       r, c, sites0[r][c].boundary_mass);
+                       r, c, sites[r][c].boundary_mass);
 #endif
-                if (sites0[r][c].boundary_mass >= gg_beta)
+                if (sites[r][c].boundary_mass >= gg_beta)
                     sites[r][c].attached = 1;
                 break;
             case 3:
+                /* concavity */
 #ifdef DEBUG
                 printf("boundary 3 %d %d %f %f\n",
                        r, c,
-                       sites0[r][c].boundary_mass,
-                       sites0[r][c].diffusive_mass);
+                       sites[r][c].boundary_mass,
+                       sites[r][c].diffusive_mass);
 #endif
-                if (sites0[r][c].boundary_mass >= 1.0) {
+                if (sites[r][c].boundary_mass >= 1.0) {
                     sites[r][c].attached = 1;
                     break;
                 }
-                float diffusive_mass = sites0[r][c].diffusive_mass;
+                if (sites[r][c].boundary_mass < gg_alpha)
+                    break;
+                float diffusive_mass = sites[r][c].diffusive_mass;
                 for (int i = 0; i < 6; i++) {
                     int rr, cc;
                     if (!next_neighbor(i, r, c, &rr, &cc))
                         continue;
-                    diffusive_mass += sites0[rr][cc].diffusive_mass;
+                    diffusive_mass += sites[rr][cc].diffusive_mass;
                 }
-                if (diffusive_mass < gg_theta &&
-                    sites0[r][c].boundary_mass >= gg_alpha)
+                if (diffusive_mass < gg_theta)
                     sites[r][c].attached = 1;
                 break;
             default:
+                /* hole, essentially */
                 sites[r][c].attached = 1;
             }
             if (sites[r][c].attached) {
@@ -215,6 +224,8 @@ static int attachment(void) {
                         continue;
                     sites[rr][cc].attached_neighbors++;
                 }
+                sites[r][c].crystal_mass += sites[r][c].boundary_mass;
+                sites[r][c].boundary_mass = 0;
                 int ss = size / 3;
                 if (r < ss || r >= size - ss || c < ss || c >= size - ss)
                     stop = 1;
@@ -225,16 +236,27 @@ static int attachment(void) {
 }
 
 static void melting(void) {
-    for (int r = 0; r < size; r++) {
-        for (int c = 0; c < size; c++) {
-            if (sites0[r][c].attached || sites0[r][c].attached_neighbors == 0)
+    for (int r = 1; r < size - 1; r++) {
+        for (int c = 1; c < size - 1; c++) {
+            if (sites[r][c].attached || sites[r][c].attached_neighbors == 0)
                 continue;
-            float b0 = sites0[r][c].boundary_mass;
-            float c0 = sites0[r][c].crystal_mass;
-            float d0 = sites0[r][c].diffusive_mass;
+            float b0 = sites[r][c].boundary_mass;
+            float c0 = sites[r][c].crystal_mass;
+            float d0 = sites[r][c].diffusive_mass;
             sites[r][c].boundary_mass = (1 - gg_mu) * b0;
             sites[r][c].crystal_mass = (1 - gg_gamma) * c0;
             sites[r][c].diffusive_mass = d0 + gg_mu * b0 + gg_gamma * c0;
+        }
+    }
+}
+
+static void noise(void) {
+    for (int r = 1; r < size - 1; r++) {
+        for (int c = 1; c < size - 1; c++) {
+            double sigma = gg_sigma;
+            if ((random() & 1) == 0)
+                sigma = -sigma;
+            sites[r][c].diffusive_mass *= (1 + sigma);
         }
     }
 }
@@ -272,17 +294,19 @@ int main(int argc, char **argv) {
     size = atoi(argv[1]);
     assert(size > 0);
     init_sites();
-    while (1) {
+    int stop = 0;
+    int t = 1;
+    while (!stop && t < 100000) {
+        if (t % 1000 == 0)
+            fprintf(stderr, ".");
         diffusion();
-        flip_sites();
         freezing();
-        flip_sites();
-        int stop = attachment();
-        if (stop)
-            break;
-        flip_sites();
+        stop = attachment();
         melting();
+        if (gg_gamma > 0)
+            noise();
         flip_sites();
+        t++;
     }
     render();
     return 0;

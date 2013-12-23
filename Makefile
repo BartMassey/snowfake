@@ -5,7 +5,7 @@
 
 C99C = gcc -std=gnu99
 CC = gcc
-CFLAGS = -g -O4 -Wall
+CFLAGS = -g -O4 -Wall -finline-functions
 LIBS = -lm
 
 snowfake: snowfake.c

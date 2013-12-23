@@ -17,7 +17,7 @@ described in
 > accessed 2012/12/17.
 
 Gravner and Griffeath's own C code has been generously made
-available at However, I found this code fairly
+available on their website. However, I found this code fairly
 incomprehensible and hard to adapt to my purposes.
 
 I am also aware of an open-source Python implementation by
