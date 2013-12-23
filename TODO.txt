@@ -1,0 +1,6 @@
+* Get page flipping right; need to worry about cells where
+  calculations are based on neighbors.
+* Simplify neighbor function since edges are now unreachable.
+* Expand effective growth area.
+* Fuse loops.
+* Fix SVG output to scale and crop properly.
