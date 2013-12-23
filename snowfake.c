@@ -26,7 +26,7 @@ static int center;
 /* initial vapor density: typ 0.3..0.9 */
 static float gg_rho = 0.42;
 /* freezing fraction for boundary: typ 0.001..0.02 */
-static float gg_kappa = 0.075;
+static float gg_kappa = 0.01;
 /* min boundary mass to join crystal for 1..2 neighbors: typ 1.05..3.0 */
 static float gg_beta = 1.9;
 /* max neighborhood diffusive mass to join for 3 neighbors: typ 0.01..0.04 */
