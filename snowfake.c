@@ -273,7 +273,7 @@ static void render(void) {
            scale, scale * yscale);
     for (int r = 0; r < size; r++) {
         for (int c = 0; c < size; c++) {
-            if (!sites0[r][c].attached)
+            if (!sites[r][c].attached)
                 continue;
             int x0 = r - center;
             int y0 = c - center;
@@ -283,7 +283,7 @@ static void render(void) {
             float x = (d * cosf(a) + center) * dscale;
             float y = (d * sinf(a) + center) * dscale * yscale;
             printf("  <circle cx=\"%f\" cy=\"%f\" r=\"%f\"/>\n",
-                   x, y, sites0[r][c].crystal_mass * dotscale);
+                   x, y, sites[r][c].crystal_mass * dotscale);
         }
     }
     printf("</svg>\n");
@@ -294,20 +294,26 @@ int main(int argc, char **argv) {
     size = atoi(argv[1]);
     assert(size > 0);
     init_sites();
-    int stop = 0;
     int t = 1;
-    while (!stop && t < 100000) {
+    while (1) {
         if (t % 1000 == 0)
             fprintf(stderr, ".");
+        if (t >= 100000) {
+            fprintf(stderr, "!");
+            break;
+        }
         diffusion();
         freezing();
-        stop = attachment();
+        int stop = attachment();
+        if (stop)
+            break;
         melting();
         if (gg_gamma > 0)
             noise();
         flip_sites();
         t++;
     }
+    fprintf(stderr, "\n");
     render();
     return 0;
 }
